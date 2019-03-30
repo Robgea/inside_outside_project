@@ -57,41 +57,39 @@ def referral_tracker(master_dict, name_dict):
                 elif (row_count == 2):
                     cell_count = 0
                     for cell in row:
-                        if cell == 'Is this you?':
+                        if cell.startswith('Is this you?'):
                             no_num = cell_count
-                        if cell == 'Organization':
-                            org_num == cell_count
-                        if cell == 'First Name':
-                            first_name_num == cell_count
-                        if cell == 'Last Name':
-                            last_name_num == cell_count
-                        if cell == 'ContactID':
-                            contact_num == cell_count
-
-
-
+                        elif cell.startswith('First N'):
+                            first_name_num = cell_count
+                        elif cell.startswith('Last N'):
+                            last_name_num = cell_count
+                        elif cell.startswith('Organizat'):
+                            org_num = cell_count
+                        elif cell.startswith('ContactID'):
+                            contact_num = cell_count
+                        
                         cell_count += 1
+
                     if (no_num == 0) or (org_num == 0) or (first_name_num == 0) or (last_name_num == 0) or (contact_num == 0):
-                        print(f'Error with {counting_file} header.')
+                        print(f'Error with {counting_file} header. \n  {no_num}, {org_num}, {first_name_num} {last_name_num}, {contact_num}. {cell_count}')
                     row_count += 1
 
                 else: 
                     #check here against referrer org
-                    if row[3] == 'No':
-                        contact_id = row[10]
-                        org_name = row[7]
-                        name = f'{row[4]} {row[5]}'
+                    if row[no_num] == 'No':
+                        contact_id = row[contact_num]
+                        org_name = row[org_num]
+                        name = f'{row[first_name_num]} {row[last_name_num]}'
                         if contact_id  in referral_dict:
                             try:
                                 if master_dict[contact_id] == org_name:
                                     referral_dict[contact_id].inside_count += 1
                                     referral_dict[contact_id].tracking_dict.update({name : org_name})
                                 else:
-                                    referral_dict.update({contact_id : Reffer()})
                                     referral_dict[contact_id].outside_count += 1
                                     referral_dict[contact_id].tracking_dict.update({name : org_name})
-                            except:
-                                print(f'Error in {counting_file} with {contact_id}')
+                            except Exception as e:
+                                print(f'Error in {counting_file} with {contact_id}\n {e}')
                                 continue
 
 
@@ -107,8 +105,9 @@ def referral_tracker(master_dict, name_dict):
                                     referral_dict.update({contact_id : obj})
                                     referral_dict[contact_id].outside_count += 1
                                     referral_dict[contact_id].tracking_dict.update({name : org_name})
-                            except:
-                                print(f'Error in {counting_file} with {contact_id}')
+                            except Exception as e:
+                                print(f'Error in {counting_file} with {contact_id}\n {e}')
+
                                 continue                                
 
     for entry in referral_dict:
