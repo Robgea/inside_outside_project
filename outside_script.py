@@ -4,13 +4,27 @@ import os
 
 results_csv = open('referrer_results.csv', 'w', newline = '')
 results_write = csv.writer(results_csv)
-results_write.writerow(['crm number', 'name', 'organization', 'inside org referral numbers', 'outside org referral numbers', 'name and orgs of people referred....'])
+results_write.writerow(['crm number', 'First Name', 'Last Name', 'organization', 'inside org referral numbers', 'outside org referral numbers', 'name and orgs of people referred....'])
 
-class Reffer():
-    def __init__(self):
+error_csv = open('error_referrals.csv', 'w', newline = '')
+error_write = csv.writer(error_csv)
+
+
+class Refferal():
+    def __init__(self, org_name):
         self.inside_count = 0
         self.outside_count = 0
-        self.tracking_dict = {}
+        self.errors = 0
+        self.tracking_set = set()
+        self.org_name = org_name
+        
+
+
+class Info():
+    def __init__(self, first, last, org):
+        self.first = first
+        self.last = last
+        self.org = org
 
 
 
@@ -18,14 +32,18 @@ def master_dict_maker():
     master_raw = open('master.csv')
     master_reader = csv.reader(master_raw)
     master_list = list(master_reader)
-    output_dict = {row[1] : row[5] for row in master_list}
+    output_dict = {}
+    for row in master_list:
+        if len(row) > 2:
+            obj = Info(row[2], row[3], row[5])
+            output_dict.update({row[1] : obj})
     return output_dict
 
 def name_dict_maker():
     master_raw = open('master.csv')
     master_reader = csv.reader(master_raw)
     master_list = list(master_reader)
-    name_dict = {row[1] : f'{row[2]} {row[3]}' for row in master_list}
+    name_dict = {f'{row[2]} {row[3]}' : row[1] for row in master_list if (len(row) > 2)}
     return name_dict
 
 def referral_tracker(master_dict, name_dict):
@@ -38,6 +56,8 @@ def referral_tracker(master_dict, name_dict):
         elif counting_file == 'referrer_results.csv':
             continue
         elif counting_file == 'master.csv':
+            continue
+        elif counting_file == 'error_referrals.csv':
             continue
         else:
             contact_num = 0
@@ -78,43 +98,46 @@ def referral_tracker(master_dict, name_dict):
                     #check here against referrer org
                     if row[no_num] == 'No':
                         contact_id = row[contact_num]
-                        org_name = row[org_num]
                         name = f'{row[first_name_num]} {row[last_name_num]}'
-                        if contact_id  in referral_dict:
+                        # Check to see if the name is in the name dictionary. If it isn't, kick the referral to the error dict.
+
+                        if name not in name_dict:
+                            error_write.writerow([counting_file[0:-4], contact_id, name])
+
+                        elif contact_id  in referral_dict:
                             try:
-                                if master_dict[contact_id] == org_name:
-                                    referral_dict[contact_id].inside_count += 1
-                                    referral_dict[contact_id].tracking_dict.update({name : org_name})
-                                else:
-                                    referral_dict[contact_id].outside_count += 1
-                                    referral_dict[contact_id].tracking_dict.update({name : org_name})
+                                referral_dict[contact_id].tracking_set.add(name_dict[name])
+
                             except Exception as e:
                                 print(f'Error in {counting_file} with {contact_id}\n {e}')
                                 continue
 
-
-
                         elif contact_id not in referral_dict:
                             try:
-                                obj = Reffer()
-                                if master_dict[contact_id] == org_name:
-                                    referral_dict.update({contact_id : obj})
-                                    referral_dict[contact_id].inside_count += 1
-                                    referral_dict[contact_id].tracking_dict.update({name : org_name})
-                                else:
-                                    referral_dict.update({contact_id : obj})
-                                    referral_dict[contact_id].outside_count += 1
-                                    referral_dict[contact_id].tracking_dict.update({name : org_name})
+                                obj = Refferal(master_dict[contact_id].org, )
+                                referral_dict.update({contact_id : obj})
+                                referral_dict[contact_id].tracking_set.add(name_dict[name])
+
                             except Exception as e:
                                 print(f'Error in {counting_file} with {contact_id}\n {e}')
 
                                 continue                                
 
     for entry in referral_dict:
-            
-        output_row = [entry, name_dict[entry], master_dict[entry], referral_dict[entry].inside_count, referral_dict[entry].outside_count,]
-        for key in referral_dict[entry].tracking_dict:
-            output_row.append(f'{key} at {referral_dict[entry].tracking_dict[key]}')
+        #go through each entry, update the inside outside count, then...
+        for num in referral_dict[entry].tracking_set:
+            # if org == entry org then inside count +1 else outside +1
+            if master_dict[num].org == referral_dict[entry].org_name:
+                referral_dict[entry].inside_count += 1
+            elif master_dict[num].org != referral_dict[entry].org_name:
+                referral_dict[entry].outside_count += 1
+
+
+
+
+        output_row = [entry, master_dict[entry].first, master_dict[entry].last, master_dict[entry].org, referral_dict[entry].inside_count, referral_dict[entry].outside_count,]
+        for pers in referral_dict[entry].tracking_set:
+            output_row.append(f'{master_dict[pers].first} {master_dict[pers].last} at {master_dict[pers].org}')
 
         results_write.writerow(output_row)
 
